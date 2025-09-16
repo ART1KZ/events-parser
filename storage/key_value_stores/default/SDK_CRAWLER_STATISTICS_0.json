@@ -1,0 +1,49 @@
+{
+  "requestsFinished": 0,
+  "requestsFailed": 1,
+  "requestsRetries": 1,
+  "requestsFailedPerMinute": 21,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 114,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2025-09-01T21:21:18.874Z",
+  "crawlerFinishedAt": "2025-09-01T21:21:21.577Z",
+  "statsPersistedAt": "2025-09-01T21:21:21.578Z",
+  "crawlerRuntimeMillis": 2741,
+  "crawlerLastStartTimestamp": 1756761678837,
+  "requestRetryHistogram": [
+    null,
+    null,
+    1
+  ],
+  "statsId": 0,
+  "requestAvgFailedDurationMillis": 114,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 114,
+  "requestsTotal": 1,
+  "requestsWithStatusCode": {},
+  "errors": {
+    "file:///C:/Repositories/events-parser/src/test.js:286:56": {
+      "missing error code": {
+        "Error": {
+          "`url` argument is not a string or URL.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "file:///C:/Repositories/events-parser/src/test.js:286:56": {
+      "missing error code": {
+        "Error": {
+          "`url` argument is not a string or URL.": {
+            "count": 2
+          }
+        }
+      }
+    }
+  }
+}

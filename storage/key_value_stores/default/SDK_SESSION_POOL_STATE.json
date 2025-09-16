@@ -1,0 +1,402 @@
+{
+  "usableSessionsCount": 3,
+  "retiredSessionsCount": 0,
+  "sessions": [
+    {
+      "id": "session_4eyiCjJ2Of",
+      "cookieJar": {
+        "version": "tough-cookie@5.1.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": [
+          {
+            "key": "__ddg8_",
+            "value": "U5itdbxJcUMs3lVN",
+            "expires": "2025-09-01T21:41:20.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.250Z",
+            "lastAccessed": "2025-09-01T21:21:21.250Z"
+          },
+          {
+            "key": "__ddg10_",
+            "value": "1756761680",
+            "expires": "2025-09-01T21:41:20.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "__ddg9_",
+            "value": "178.208.234.62",
+            "expires": "2025-09-01T21:41:20.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "__ddg1_",
+            "value": "J4GDUnWhiMngKzTe7qgf",
+            "expires": "2026-09-01T21:21:20.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "PHPSESSID",
+            "value": "628d86dd07c252560634d659a3b75654",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "dle_lang",
+            "value": "ru",
+            "expires": "2026-09-01T21:21:20.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "dle_lang_id",
+            "value": "1",
+            "expires": "2026-09-01T21:21:20.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "selected_language",
+            "value": "Russian",
+            "expires": "2026-09-01T21:21:20.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "dle_city",
+            "value": "ijv",
+            "expires": "2025-09-02T21:21:21.000Z",
+            "maxAge": 86400,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          },
+          {
+            "key": "dle_cityid",
+            "value": "37",
+            "expires": "2025-09-02T21:21:21.000Z",
+            "maxAge": 86400,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.251Z",
+            "lastAccessed": "2025-09-01T21:21:21.251Z"
+          }
+        ]
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2025-09-01T22:11:20.554Z",
+      "createdAt": "2025-09-01T21:21:20.554Z",
+      "usageCount": 1,
+      "maxUsageCount": 50,
+      "errorScore": 1
+    },
+    {
+      "id": "session_GkbVC6VRnn",
+      "cookieJar": {
+        "version": "tough-cookie@5.1.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": [
+          {
+            "key": "__ddg8_",
+            "value": "YqbC0IUd5DsuoPCp",
+            "expires": "2025-09-01T21:41:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "__ddg10_",
+            "value": "1756761681",
+            "expires": "2025-09-01T21:41:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "__ddg9_",
+            "value": "178.208.234.62",
+            "expires": "2025-09-01T21:41:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "__ddg1_",
+            "value": "DFN6ysce6bP8EZrikAhT",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "PHPSESSID",
+            "value": "dbddc24cdc5939030d07ffe49a5784bb",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "dle_lang",
+            "value": "ru",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "dle_lang_id",
+            "value": "1",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "selected_language",
+            "value": "Russian",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.403Z",
+            "lastAccessed": "2025-09-01T21:21:21.403Z"
+          },
+          {
+            "key": "dle_city",
+            "value": "ijv",
+            "expires": "2025-09-02T21:21:21.000Z",
+            "maxAge": 86400,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.404Z",
+            "lastAccessed": "2025-09-01T21:21:21.404Z"
+          },
+          {
+            "key": "dle_cityid",
+            "value": "37",
+            "expires": "2025-09-02T21:21:21.000Z",
+            "maxAge": 86400,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.404Z",
+            "lastAccessed": "2025-09-01T21:21:21.404Z"
+          }
+        ]
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2025-09-01T22:11:21.294Z",
+      "createdAt": "2025-09-01T21:21:21.294Z",
+      "usageCount": 1,
+      "maxUsageCount": 50,
+      "errorScore": 1
+    },
+    {
+      "id": "session_FZvmFkZPTx",
+      "cookieJar": {
+        "version": "tough-cookie@5.1.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": [
+          {
+            "key": "__ddg8_",
+            "value": "lXXkihY6A7seuPIj",
+            "expires": "2025-09-01T21:41:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.520Z",
+            "lastAccessed": "2025-09-01T21:21:21.520Z"
+          },
+          {
+            "key": "__ddg10_",
+            "value": "1756761681",
+            "expires": "2025-09-01T21:41:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.520Z",
+            "lastAccessed": "2025-09-01T21:21:21.520Z"
+          },
+          {
+            "key": "__ddg9_",
+            "value": "178.208.234.62",
+            "expires": "2025-09-01T21:41:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.520Z",
+            "lastAccessed": "2025-09-01T21:21:21.520Z"
+          },
+          {
+            "key": "__ddg1_",
+            "value": "JbNHY7kGJsp2rD7govHi",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": false,
+            "creation": "2025-09-01T21:21:21.520Z",
+            "lastAccessed": "2025-09-01T21:21:21.520Z"
+          },
+          {
+            "key": "PHPSESSID",
+            "value": "d1201e70319b348d58f8f3dd1c848115",
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.520Z",
+            "lastAccessed": "2025-09-01T21:21:21.520Z"
+          },
+          {
+            "key": "dle_lang",
+            "value": "ru",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.521Z",
+            "lastAccessed": "2025-09-01T21:21:21.521Z"
+          },
+          {
+            "key": "dle_lang_id",
+            "value": "1",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.521Z",
+            "lastAccessed": "2025-09-01T21:21:21.521Z"
+          },
+          {
+            "key": "selected_language",
+            "value": "Russian",
+            "expires": "2026-09-01T21:21:21.000Z",
+            "maxAge": 31536000,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.521Z",
+            "lastAccessed": "2025-09-01T21:21:21.521Z"
+          },
+          {
+            "key": "dle_city",
+            "value": "ijv",
+            "expires": "2025-09-02T21:21:21.000Z",
+            "maxAge": 86400,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.521Z",
+            "lastAccessed": "2025-09-01T21:21:21.521Z"
+          },
+          {
+            "key": "dle_cityid",
+            "value": "37",
+            "expires": "2025-09-02T21:21:21.000Z",
+            "maxAge": 86400,
+            "domain": "almazcinema.com",
+            "path": "/",
+            "httpOnly": true,
+            "hostOnly": true,
+            "creation": "2025-09-01T21:21:21.521Z",
+            "lastAccessed": "2025-09-01T21:21:21.521Z"
+          }
+        ]
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2025-09-01T22:11:21.431Z",
+      "createdAt": "2025-09-01T21:21:21.431Z",
+      "usageCount": 1,
+      "maxUsageCount": 50,
+      "errorScore": 1
+    }
+  ]
+}
