@@ -1,8 +1,3 @@
-// index.js
-// package.json -> { "type": "module" }
-// npm i crawlee slugify dotenv
-// Windows: $env:CRAWLEE_SYSTEM_INFO_V2='1'; node index.js
-
 import "dotenv/config";
 import { CheerioCrawler, log, Configuration } from "crawlee";
 import slugifyLib from "slugify";
@@ -35,7 +30,7 @@ const FIXED_PLACE_ID = 10611;
 
 // КОЛИЧЕСТВО ДНЕЙ ДЛЯ ПАРСИНГА (включая сегодня)
 // 1 = только сегодня, 2 = сегодня и завтра, 7 = неделя
-const DAYS_TO_PARSE = 7;
+const DAYS_TO_PARSE = 2;
 
 // Конфигурация Crawlee
 const config = new Configuration({ systemInfoV2: true });
@@ -484,7 +479,7 @@ class StrapiClient {
             site: p.site,
             tel: p.tel || "",
             categories: [28],
-            forRegions: [4],
+            forCities: [2],
             place: FIXED_PLACE_ID,
             discount: "20%",
             discountRule: `Скидка на взрослый билет при покупке билета по ссылке выше по промокоду **99000006**\n**Для покупки билета**:\n- Нужно пройти регистрацию на сайте Алмаз Синема\n- Промокод вводить в поле "БОНУСЫ"\nВозможна покупка нескольких взрослых билетов.`,
