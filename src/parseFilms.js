@@ -1,3 +1,8 @@
+// index.js
+// package.json -> { "type": "module" }
+// npm i crawlee slugify dotenv
+// Windows: $env:CRAWLEE_SYSTEM_INFO_V2='1'; node index.js
+
 import "dotenv/config";
 import { CheerioCrawler, log, Configuration } from "crawlee";
 import slugifyLib from "slugify";
@@ -417,12 +422,11 @@ class StrapiClient {
     }
 
     async uploadAndLinkFile(localPath, caption, alt, refId, field = "cover") {
-        const baseName = path.basename(localPath);   
-
-        const ext = (baseName.split(".").pop() || "").toLowerCase();   
+        const baseName = path.basename(localPath);
+        const ext = (baseName.split(".").pop() || "").toLowerCase();
         const mime = mimeFromExt(ext);
         const buf = await fs.promises.readFile(localPath);
-        const file = new Blob([buf], { type: mime });      
+        const file = new Blob([buf], { type: mime });
 
         const form = new FormData();
         form.append("files", file, baseName);
@@ -567,11 +571,11 @@ function extractAllSessions($, baseUrl) {
                         );
                         if (!baseTitle || !tsSec) return;
 
-                        // Смещаем дату начала на -1 час
-                        const dateStart = new Date(tsSec * 1000 - 60 * 60 * 1000).toISOString();
+                        // НЕ сдвигаем время - оставляем как есть
+                        const dateStart = new Date(tsSec * 1000).toISOString();
                         const dateEnd =
                             lengthMin > 0
-                                ? new Date(tsSec * 1000 - 60 * 60 * 1000 + lengthMin * 60000).toISOString()
+                                ? new Date(tsSec * 1000 + lengthMin * 60000).toISOString()
                                 : null;
 
                         const title = age ? `${baseTitle}, ${age}` : baseTitle;
@@ -705,13 +709,12 @@ async function main() {
 
                 for (const s of groupedItems) {
                     try {
-                        // Отнимаем 1 час от исходного времени dateStart перед отправкой в базу
-                        const dateStartShifted = new Date(new Date(s.dateStart).getTime() - 60 * 60 * 1000).toISOString();
+                        // НЕ сдвигаем время перед записью в базу
                         const party = {
                             title: s.title,
                             abbTitle: s.abbtitle,
                             slug: s.slug,
-                            dateStart: dateStartShifted,
+                            dateStart: s.dateStart,
                             site: s.site,
                             tel: "",
                             description: s.description || "",
