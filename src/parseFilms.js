@@ -34,16 +34,19 @@ const LOCALE = process.env.STRAPI_LOCALE || "";
 const FIXED_PLACE_ID = 10611;
 
 // КОЛИЧЕСТВО ДНЕЙ ДЛЯ ПАРСИНГА (включая сегодня)
-// 1 = только сегодня, 2 = сегодня и завтра, 7 = неделя
-const DAYS_TO_PARSE = 2;
+const DAYS_TO_PARSE = 7;
 
 // Конфигурация Crawlee
-const config = new Configuration({ systemInfoV2: true });
+const config = new Configuration({
+    systemInfoV2: true,
+    logLevel: "DEBUG"
+});
 
 // ---------- утилиты ----------
 function slugify(input) {
     return slugifyLib(input, { lower: true, strict: true, trim: true });
 }
+
 function toAbsUrl(maybeUrl, base) {
     try {
         return new URL(maybeUrl, base).toString();
@@ -52,6 +55,7 @@ function toAbsUrl(maybeUrl, base) {
         return maybeUrl || base;
     }
 }
+
 function isValidHttpUrl(u) {
     try {
         const url = new URL(u);
@@ -60,6 +64,7 @@ function isValidHttpUrl(u) {
         return false;
     }
 }
+
 function getCookieStringSafe(session, url, fallbackUrl) {
     try {
         const pick = isValidHttpUrl(url)
@@ -73,20 +78,24 @@ function getCookieStringSafe(session, url, fallbackUrl) {
         return "";
     }
 }
+
 async function ensureDir(dir) {
     await fs.promises.mkdir(dir, { recursive: true });
 }
+
 function safeBaseName(name) {
     return String(name)
         .replace(/[^a-z0-9._-]/gi, "-")
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
 }
+
 function getExtFromUrl(u) {
     const s = typeof u === "string" ? u : u?.toString?.() ?? "";
     const m = s.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
     return m && typeof m[1] === "string" ? m[1].toLowerCase() : "";
 }
+
 function extFromContentType(ct, fallback = "jpg") {
     try {
         const base = String(ct ?? "")
@@ -105,6 +114,7 @@ function extFromContentType(ct, fallback = "jpg") {
         return fallback;
     }
 }
+
 function mimeFromExt(ext) {
     const e = String(ext || "").toLowerCase();
     if (e === "jpg" || e === "jpeg") return "image/jpeg";
@@ -115,6 +125,7 @@ function mimeFromExt(ext) {
     if (e === "avif") return "image/avif";
     return "application/octet-stream";
 }
+
 function stripMarkdownUrl(s) {
     const str = String(s || "").trim();
     const md = str.match(/\((https?:\/\/[^\s)]+)\)/);
@@ -122,6 +133,7 @@ function stripMarkdownUrl(s) {
     const link = str.match(/https?:\/\/[^\s,]+/);
     return link ? link[0] : str.replace(/^[\s,]+|[\s,]+$/g, "");
 }
+
 function normalizeOneUrl(u, base) {
     const raw = stripMarkdownUrl(u);
     if (!raw) return "";
@@ -135,6 +147,7 @@ function normalizeOneUrl(u, base) {
         return "";
     }
 }
+
 function pickBestMovieUrl(cands, base) {
     const seen = new Set();
     const urls = [];
@@ -154,6 +167,7 @@ function pickBestMovieUrl(cands, base) {
     });
     return urls[0];
 }
+
 function pickImageUrlFromImg($, img, baseUrl) {
     const $img = $(img);
     const candidates = [
@@ -169,16 +183,6 @@ function pickImageUrlFromImg($, img, baseUrl) {
     }
     const url = candidates.find(Boolean) || "";
     return url ? toAbsUrl(url, baseUrl) : null;
-}
-function logResponseHeaders(res, url) {
-    try {
-        const ct = res.headers.get("content-type");
-        const cl = res.headers.get("content-length");
-        const server = res.headers.get("server");
-        log.info(
-            `HEADERS for ${url}: content-type=${ct ?? "null"} content-length=${cl ?? "null"} server=${server ?? "null"}`
-        );
-    } catch {}
 }
 
 // ---------- функции времени ----------
@@ -197,6 +201,29 @@ function formatDate(date) {
         year: "numeric",
         timeZone: "Europe/Moscow",
     });
+}
+
+// ИСПРАВЛЕННАЯ функция для сохранения московского времени в базу
+function toMoscowISOString(date) {
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Europe/Moscow',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    const hour = parts.find(p => p.type === 'hour').value;
+    const minute = parts.find(p => p.type === 'minute').value;
+    const second = parts.find(p => p.type === 'second').value;
+    
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}+03:00`;
 }
 
 // ---------- группировка сеансов ----------
@@ -226,14 +253,16 @@ function groupSessionsByMovieAndDay(sessions, daysCount) {
     for (const [_, movieSessions] of groups) {
         movieSessions.sort((a, b) => a.sessionStart.getTime() - b.sessionStart.getTime());
         const earliest = movieSessions[0];
+        // Добавляем к времени сеанса 1 час только для описания
         const allTimes = movieSessions.map((s) => {
-            const date = formatDate(s.sessionStart);
-            const time = formatTime(s.sessionStart);
+            const sessionPlus = new Date(s.sessionStart.getTime() + 60 * 60 * 1000);
+            const date = formatDate(sessionPlus);
+            const time = formatTime(sessionPlus);
             return `${date} в ${time}`;
         });
         const mainSession = {
             ...earliest,
-            dateStart: earliest.sessionStart.toISOString(),
+            dateStart: toMoscowISOString(earliest.sessionStart),
             slug: slugify(`${earliest.baseTitle}-${formatDate(earliest.sessionStart).replace(/\./g, "-")}`),
             allShowTimes: allTimes,
         };
@@ -243,13 +272,33 @@ function groupSessionsByMovieAndDay(sessions, daysCount) {
     return result;
 }
 
+// Функция для тестирования соединения
+async function testConnection(url) {
+    try {
+        log.info(`Тестируем соединение с ${url}...`);
+        const res = await fetch(url, {
+            signal: AbortSignal.timeout(10000),
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            }
+        });
+        log.info(`Соединение успешно. Status: ${res.status}`);
+        return true;
+    } catch (e) {
+        log.error(`Ошибка соединения с ${url}: ${e.message}`);
+        return false;
+    }
+}
+
+// Загрузка изображения
 async function downloadImage(imageUrl, destDir, fileBase, referer, cookieString) {
     await ensureDir(destDir);
     let ext = getExtFromUrl(imageUrl);
     const headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Crawlee/cheerio",
-        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-        Referer: referer || new URL(CINEMA_URL).origin,
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "Referer": referer || new URL(CINEMA_URL).origin,
         "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
     };
     if (cookieString) headers["Cookie"] = cookieString;
@@ -257,7 +306,11 @@ async function downloadImage(imageUrl, destDir, fileBase, referer, cookieString)
     let res, lastErr;
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            res = await fetch(imageUrl, { headers, redirect: "follow" });
+            res = await fetch(imageUrl, {
+                headers,
+                redirect: "follow",
+                signal: AbortSignal.timeout(15000)
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             break;
         } catch (e) {
@@ -267,8 +320,11 @@ async function downloadImage(imageUrl, destDir, fileBase, referer, cookieString)
             await new Promise((r) => setTimeout(r, backoffMs));
         }
     }
-    if (!res || !res.ok) throw new Error(`Не удалось скачать: ${imageUrl} (${lastErr?.message || "нет ответа"})`);
-    logResponseHeaders(res, imageUrl);
+    
+    if (!res || !res.ok) {
+        throw new Error(`Не удалось скачать: ${imageUrl} (${lastErr?.message || "нет ответа"})`);
+    }
+    
     if (!ext) {
         const ct = res.headers.get("content-type");
         ext = extFromContentType(ct, "jpg");
@@ -284,12 +340,14 @@ async function downloadImage(imageUrl, destDir, fileBase, referer, cookieString)
         log.info(`Файл уже существует, пропускаю: ${filename}`);
         return filepath;
     } catch {}
+    
     const buf = Buffer.from(await res.arrayBuffer());
     await fs.promises.writeFile(filepath, buf);
     log.info(`Сохранено изображение: ${filename}`);
     return filepath;
 }
 
+// Извлечение описания из HTML
 function decodeEntities(s) {
     return String(s)
         .replace(/&nbsp;/g, " ")
@@ -301,36 +359,54 @@ function decodeEntities(s) {
         .replace(/\s{2,}/g, " ")
         .trim();
 }
+
 function extractDescriptionFromHtml(html) {
     const tryMatch = (re) => {
         const m = html.match(re);
         if (m?.[1]) return decodeEntities(m[1].replace(/<[^>]+>/g, " "));
         return "";
     };
+    
     let txt = tryMatch(/<div[^>]*class=["'][^"']*\bdescription\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
     if (txt) return txt;
+    
     txt = tryMatch(/<div[^>]*class=["'][^"']*\b(movie[-_ ]?desc|synopsis|summary|about)\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
     if (txt) return txt;
+    
     txt = tryMatch(/<div[^>]*itemprop=["']description["'][^>]*>([\s\S]*?)<\/div>/i);
     if (txt) return txt;
+    
     const m1 = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["'][^>]*>/i);
     if (m1?.[1]) return decodeEntities(m1[1]);
+    
     const m2 = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["'][^>]*>/i);
     if (m2?.[1]) return decodeEntities(m2[1]);
+    
     return "";
 }
+
 async function fetchMovieDescription(movieUrl, cookieString, referer) {
     const headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Crawlee/cheerio",
-        Accept: "text/html,application/xhtml+xml",
-        Referer: referer || new URL(CINEMA_URL).origin,
+        "Accept": "text/html,application/xhtml+xml",
+        "Referer": referer || new URL(CINEMA_URL).origin,
         "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
     };
     if (cookieString) headers["Cookie"] = cookieString;
-    const res = await fetch(movieUrl, { headers, redirect: "follow" });
-    if (!res.ok) return "";
-    const html = await res.text();
-    return extractDescriptionFromHtml(html);
+    
+    try {
+        const res = await fetch(movieUrl, {
+            headers,
+            redirect: "follow",
+            signal: AbortSignal.timeout(10000)
+        });
+        if (!res.ok) return "";
+        const html = await res.text();
+        return extractDescriptionFromHtml(html);
+    } catch (e) {
+        log.warning(`Ошибка получения описания с ${movieUrl}: ${e.message}`);
+        return "";
+    }
 }
 
 function extractMoviePageUrl($, movie, baseUrl, dd) {
@@ -355,11 +431,13 @@ function describeFetchError(e) {
     return `${e.message} (${code}${addr ? ` ${addr}` : ""}${port ? `:${port}` : ""})`;
 }
 
+// Strapi клиент
 class StrapiClient {
     constructor(base, token) {
         this.base = base.replace(/\/+$/, "");
         this.token = token;
     }
+
     headers(json = true) {
         const h = {};
         if (json) h["Content-Type"] = "application/json";
@@ -371,15 +449,18 @@ class StrapiClient {
         const res = await fetch(`${this.base}${pathname}`, {
             method: "GET",
             headers: this.headers(false),
+            signal: AbortSignal.timeout(30000)
         });
         if (!res.ok) throw new Error(`GET ${pathname} -> ${res.status}`);
         return res.json();
     }
+
     async post(pathname, body) {
         const res = await fetch(`${this.base}${pathname}`, {
             method: "POST",
             headers: this.headers(true),
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(30000)
         });
         if (!res.ok) {
             const t = await res.text().catch(() => "");
@@ -387,11 +468,13 @@ class StrapiClient {
         }
         return res.json();
     }
+
     async put(pathname, body) {
         const res = await fetch(`${this.base}${pathname}`, {
             method: "PUT",
             headers: this.headers(true),
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(30000)
         });
         if (!res.ok) {
             const t = await res.text().catch(() => "");
@@ -445,6 +528,7 @@ class StrapiClient {
             method: "POST",
             headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
             body: form,
+            signal: AbortSignal.timeout(60000)
         });
 
         if (!res.ok) {
@@ -453,7 +537,9 @@ class StrapiClient {
         }
 
         const files = await res.json();
-        if (!Array.isArray(files) || !files.length) throw new Error("Upload returned empty array");
+        if (!Array.isArray(files) || !files.length) {
+            throw new Error("Upload returned empty array");
+        }
         return files[0];
     }
 
@@ -571,12 +657,12 @@ function extractAllSessions($, baseUrl) {
                         );
                         if (!baseTitle || !tsSec) return;
 
-                        // НЕ сдвигаем время - оставляем как есть
-                        const dateStart = new Date(tsSec * 1000).toISOString();
-                        const dateEnd =
-                            lengthMin > 0
-                                ? new Date(tsSec * 1000 + lengthMin * 60000).toISOString()
-                                : null;
+                        // Используем московское время для сохранения
+                        const sessionDate = new Date(tsSec * 1000);
+                        const dateStart = toMoscowISOString(sessionDate);
+                        const dateEnd = lengthMin > 0
+                            ? toMoscowISOString(new Date(tsSec * 1000 + lengthMin * 60000))
+                            : null;
 
                         const title = age ? `${baseTitle}, ${age}` : baseTitle;
 
@@ -612,24 +698,39 @@ function extractAllSessions($, baseUrl) {
 // ---------- основной поток ----------
 async function main() {
     log.info(`Strapi base: ${STRAPI_URL}`);
-    log.info(`STRAPI_TOKEN length: ${(process.env.STRAPI_TOKEN || "").length}`);
+    log.info(`STRAPI_TOKEN length: ${(STRAPI_TOKEN || "").length}`);
     log.info(`STRAPI_CONTENT_UID: ${STRAPI_CONTENT_UID}`);
     log.info(`LOCALE: ${LOCALE || "(default)"}`);
     log.info(`Парсим сеансы на ${DAYS_TO_PARSE} дней`);
 
+    // Тест соединения
+    const connectionOk = await testConnection(CINEMA_URL);
+    if (!connectionOk) {
+        log.error("Не удается подключиться к сайту кинотеатра. Завершаю работу.");
+        process.exit(1);
+    }
+
     const sessions = [];
     const descCache = new Map();
     const strapi = new StrapiClient(STRAPI_URL, STRAPI_TOKEN);
-    if (!STRAPI_TOKEN) log.warning("STRAPI_TOKEN не задан — Strapi может отклонять запросы");
+    
+    if (!STRAPI_TOKEN) {
+        log.warning("STRAPI_TOKEN не задан — Strapi может отклонять запросы");
+    }
 
     const crawler = new CheerioCrawler(
         {
             useSessionPool: true,
             persistCookiesPerSession: true,
-            requestHandlerTimeoutSecs: 60,
-            maxRequestRetries: 2,
+            requestHandlerTimeoutSecs: 120,
+            navigationTimeoutSecs: 60,
+            maxRequestRetries: 3,
+            maxConcurrency: 1,
+            minConcurrency: 1,
+            
             async requestHandler({ request, $, log, session }) {
                 log.info(`Загружаю: ${request.url}`);
+                
                 const rawItems = extractAllSessions($, request.url);
                 log.info(`Найдено сеансов: ${rawItems.length}`);
 
@@ -640,9 +741,11 @@ async function main() {
                 const tasks = [];
                 const coverPathByUrl = new Map();
 
+                // Загружаем описания фильмов
                 const uniqueSites = Array.from(
                     new Set(groupedItems.map((s) => s.site))
                 ).filter(isValidHttpUrl);
+                
                 for (const movieUrl of uniqueSites) {
                     if (descCache.has(movieUrl)) continue;
                     const cookieString = getCookieStringSafe(
@@ -652,16 +755,22 @@ async function main() {
                     );
                     tasks.push(
                         (async () => {
-                            const desc = await fetchMovieDescription(
-                                movieUrl,
-                                cookieString,
-                                referer
-                            );
-                            descCache.set(movieUrl, desc || "");
+                            try {
+                                const desc = await fetchMovieDescription(
+                                    movieUrl,
+                                    cookieString,
+                                    referer
+                                );
+                                descCache.set(movieUrl, desc || "");
+                            } catch (e) {
+                                log.warning(`Ошибка получения описания для ${movieUrl}: ${e.message}`);
+                                descCache.set(movieUrl, "");
+                            }
                         })()
                     );
                 }
 
+                // Загружаем изображения
                 for (const s of groupedItems) {
                     const coverUrl = s._coverUrl;
                     if (!coverUrl) continue;
@@ -698,18 +807,20 @@ async function main() {
 
                 await Promise.allSettled(tasks);
 
+                // Добавляем описания к фильмам
                 for (const s of groupedItems) {
                     if (
                         !s.description &&
                         isValidHttpUrl(s.site) &&
                         descCache.has(s.site)
-                    )
+                    ) {
                         s.description = descCache.get(s.site) || "";
+                    }
                 }
 
+                // Создаем/обновляем записи в Strapi
                 for (const s of groupedItems) {
                     try {
-                        // НЕ сдвигаем время перед записью в базу
                         const party = {
                             title: s.title,
                             abbTitle: s.abbtitle,
@@ -720,10 +831,16 @@ async function main() {
                             description: s.description || "",
                             allShowTimes: s.allShowTimes,
                         };
+                        
                         const saved = await strapi.upsertParty(party);
                         const partyId = saved?.id;
-                        if (!partyId) continue;
+                        
+                        if (!partyId) {
+                            log.warning(`Не получен ID для ${s.title}`);
+                            continue;
+                        }
 
+                        // Привязываем обложку
                         if (s._coverUrl) {
                             const localPath = coverPathByUrl.get(s._coverUrl);
                             if (localPath) {
@@ -752,17 +869,26 @@ async function main() {
                     }
                 }
 
-                for (const s of groupedItems) delete s._coverUrl;
+                // Очищаем временные данные
+                for (const s of groupedItems) {
+                    delete s._coverUrl;
+                }
                 sessions.push(...groupedItems);
             },
+            
+            async failedRequestHandler({ request, error }) {
+                log.error(`Запрос ${request.url} не удался: ${error.message}`);
+            }
         },
         config
     );
 
+    log.info("Запускаем краулер...");
     await crawler.run([CINEMA_URL]);
+    log.info(`Краулер завершил работу. Обработано ${sessions.length} записей.`);
 }
 
 main().catch((e) => {
-    console.error(e);
+    console.error("Критическая ошибка:", e);
     process.exit(1);
 });
