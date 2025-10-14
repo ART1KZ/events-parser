@@ -8,6 +8,7 @@
     "lint": "npx @biomejs/biome lint --write",
     "format": "npx @biomejs/biome format --write"
   },
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ART1KZ/events-parser.git"
