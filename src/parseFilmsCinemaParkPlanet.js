@@ -36,7 +36,7 @@ const LOCALE = process.env.STRAPI_LOCALE || "";
 const FIXED_PLACE_ID = 10984;
 
 // КОЛИЧЕСТВО ДНЕЙ ДЛЯ ПАРСИНГА (включая сегодня)
-const DAYS_TO_PARSE = 7;
+const DAYS_TO_PARSE = 10;
 
 // Конфигурация Crawlee
 const config = new Configuration({
@@ -188,18 +188,18 @@ function extractDateFromUrl(url) {
 }
 
 // ---------- группировка сеансов ----------
-function groupSessionsByMovieAndDay(sessions, daysCount) {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endDate = new Date(todayStart.getTime() + daysCount * 24 * 60 * 60 * 1000);
+function groupSessionsByMovieAndDay(sessions, daysCount, pageDate) {
+    // Фильтруем от даты страницы
+    const start = new Date(pageDate.getFullYear(), pageDate.getMonth(), pageDate.getDate());
+    const end = new Date(start.getTime() + daysCount * 24 * 60 * 60 * 1000);
 
-    log.info(`Парсим сеансы на ${daysCount} дней с ${todayStart.toDateString()} по ${endDate.toDateString()}`);
+    log.info(`Парсим сеансы на ${daysCount} дней с ${start.toDateString()} по ${end.toDateString()}`);
 
     const groups = new Map();
 
     for (const session of sessions) {
-        const sessionStart = new Date(session.dateStart);
-        if (sessionStart < todayStart || sessionStart >= endDate) continue;
+        const sessionStart = new Date(session.originalDate);
+        if (sessionStart < start || sessionStart >= end) continue;
         const dayKey = sessionStart.toDateString();
         const movieKey = `${session.baseTitle}-${dayKey}`;
         if (!groups.has(movieKey)) groups.set(movieKey, []);
@@ -210,15 +210,19 @@ function groupSessionsByMovieAndDay(sessions, daysCount) {
     for (const [_, movieSessions] of groups) {
         movieSessions.sort((a, b) => a.sessionStart.getTime() - b.sessionStart.getTime());
         const earliest = movieSessions[0];
+        
+        // Для описания используем оригинальное время
         const allTimes = movieSessions.map((s) => {
             const date = formatDate(s.sessionStart);
             const time = formatTime(s.sessionStart);
             return `${date} в ${time}`;
         });
+        
         const mainSession = {
             ...earliest,
-            dateStart: toISOString(earliest.sessionStart),
-            slug: slugify(`${earliest.baseTitle}-${formatDate(earliest.sessionStart).replace(/\./g, "-")}`),
+            dateStart: earliest.dateStart, // Время уже в правильном формате
+            // Slug с place_id для уникальности
+            slug: slugify(`${FIXED_PLACE_ID}-${earliest.baseTitle}-${formatDate(earliest.sessionStart).replace(/\./g, "-")}`),
             allShowTimes: allTimes,
         };
         result.push(mainSession);
@@ -416,17 +420,28 @@ class StrapiClient {
         return s ? `?${s}` : "";
     }
 
-    async findPartyBySlug(slug) {
+    // ИСПРАВЛЕНО: поиск по slug + dateStart + place (все состояния: live + preview)
+    async findPartyBySlug(slug, dateStart, placeId) {
         const params = new URLSearchParams();
         params.set("filters[slug][$eq]", slug);
+        params.set("filters[dateStart][$eq]", dateStart);
+        params.set("filters[place][id][$eq]", String(placeId));
         params.set("pagination[pageSize]", "1");
-        params.set("publicationState", "preview");
+        // Убираем publicationState - ищем все (live + preview)
         if (LOCALE) params.set("locale", LOCALE);
-        const data = await this.get(`/api/${COLLECTION}?${params.toString()}`);
-        if (data?.data?.length) {
-            const row = data.data[0];
-            return row && Number.isFinite(row.id) ? row : null;
+        
+        try {
+            const data = await this.get(`/api/${COLLECTION}?${params.toString()}`);
+            if (data?.data?.length) {
+                const row = data.data[0];
+                log.info(`Найдена существующая запись: ${slug} -> ID ${row.id}`);
+                return row && Number.isFinite(row.id) ? row : null;
+            }
+        } catch (e) {
+            log.warning(`Ошибка поиска по фильтрам для ${slug}: ${e.message}`);
         }
+        
+        log.info(`Запись не найдена: ${slug} - будет создана новая`);
         return null;
     }
 
@@ -469,8 +484,15 @@ class StrapiClient {
         return files[0];
     }
 
+    // Обработка 404 и конфликтов slug (с новым поиском)
     async upsertParty(p) {
-        const existing = await this.findPartyBySlug(p.slug);
+        let existing = null;
+        try {
+            existing = await this.findPartyBySlug(p.slug, p.dateStart, FIXED_PLACE_ID);
+        } catch (e) {
+            log.warning(`Ошибка поиска записи ${p.slug}: ${e.message}`);
+        }
+        
         let finalDescription = "";
 
         if (p.allShowTimes && p.allShowTimes.length > 1) {
@@ -507,19 +529,39 @@ class StrapiClient {
         }
 
         if (existing && Number.isFinite(existing.id)) {
-            const qs = this.qLocale();
-            const res = await this.put(
-                `/api/${COLLECTION}/${existing.id}${qs}`,
-                { data: baseData }
-            );
-            const id = res?.data?.id ?? res?.id ?? existing.id;
-            return { id, data: res?.data || res };
+            try {
+                const qs = this.qLocale();
+                const res = await this.put(
+                    `/api/${COLLECTION}/${existing.id}${qs}`,
+                    { data: baseData }
+                );
+                const id = res?.data?.id ?? res?.id ?? existing.id;
+                log.info(`Обновлена запись ID ${id} для slug ${p.slug}`);
+                return { id, data: res?.data || res };
+            } catch (e) {
+                // Если 404 - запись удалена, но комбо slug+date+place занято
+                if (e.message.includes('404')) {
+                    log.warning(`Запись ${existing.id} не найдена (404), но комбо ${p.slug}+${p.dateStart} занято. Пропускаем.`);
+                    return { id: null, data: null };
+                }
+                throw e;
+            }
         } else {
-            const res = await this.post(`/api/${COLLECTION}`, {
-                data: baseData,
-            });
-            const id = res?.data?.id ?? res?.id;
-            return { id, data: res?.data || res };
+            try {
+                const res = await this.post(`/api/${COLLECTION}`, {
+                    data: baseData,
+                });
+                const id = res?.data?.id ?? res?.id;
+                log.info(`Создана новая запись ID ${id} для slug ${p.slug}`);
+                return { id, data: res?.data || res };
+            } catch (e) {
+                // Если slug/date/place уникально занято
+                if (e.message.includes('unique') || e.message.includes('400')) {
+                    log.warning(`Комбо ${p.slug}+${p.dateStart} уже существует. Пропускаем.`);
+                    return { id: null, data: null };
+                }
+                throw e;
+            }
         }
     }
 }
@@ -559,7 +601,7 @@ function extractAllSessions($, baseUrl, pageDate) {
             const [hours, minutes] = timeText.split(":").map(n => parseInt(n, 10));
             if (isNaN(hours) || isNaN(minutes)) return;
             
-            // ИСПОЛЬЗУЕМ ДАТУ ИЗ URL, А НЕ ТЕКУЩУЮ ДАТУ
+            // Оригинальная дата сеанса
             const sessionDate = new Date(
                 pageDate.getFullYear(),
                 pageDate.getMonth(),
@@ -573,7 +615,8 @@ function extractAllSessions($, baseUrl, pageDate) {
                 title,
                 abbtitle,
                 baseTitle,
-                dateStart: toISOString(sessionDate),
+                originalDate: sessionDate, // Для описания
+                dateStart: toISOString(sessionDate), // Для базы
                 dateEnd: null,
                 site,
                 description: "",
@@ -637,7 +680,8 @@ async function main() {
                 const rawItems = extractAllSessions($, request.url, pageDate);
                 log.info(`Найдено сеансов: ${rawItems.length}`);
 
-                const groupedItems = groupSessionsByMovieAndDay(rawItems, DAYS_TO_PARSE);
+                // Передаём pageDate в groupSessionsByMovieAndDay
+                const groupedItems = groupSessionsByMovieAndDay(rawItems, DAYS_TO_PARSE, pageDate);
                 log.info(`После группировки и фильтрации: ${groupedItems.length} записей`);
 
                 const referer = request.url;
@@ -690,7 +734,7 @@ async function main() {
                     }
                 }
 
-                // Создаем/обновляем записи в Strapi
+                // Создаем/обновляем записи в Strapi (ИСПРАВЛЕНО: передаём dateStart и place в поиск)
                 for (const s of groupedItems) {
                     try {
                         const party = {
@@ -705,8 +749,10 @@ async function main() {
                         };
                         const saved = await strapi.upsertParty(party);
                         const partyId = saved?.id;
+                        
+                        // Проверка на null
                         if (!partyId) {
-                            log.warning(`Не получен ID для ${s.title}`);
+                            log.warning(`Не удалось создать/обновить запись для ${s.title} (${s.slug})`);
                             continue;
                         }
 
@@ -730,6 +776,7 @@ async function main() {
                 // Очищаем временные данные
                 for (const s of groupedItems) {
                     delete s._coverUrl;
+                    delete s.originalDate;
                 }
                 sessions.push(...groupedItems);
             },

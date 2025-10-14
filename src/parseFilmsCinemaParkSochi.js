@@ -37,7 +37,7 @@ const LOCALE = process.env.STRAPI_LOCALE || "";
 const FIXED_PLACE_ID = 10985;
 
 // КОЛИЧЕСТВО ДНЕЙ ДЛЯ ПАРСИНГА (включая сегодня)
-const DAYS_TO_PARSE = 7;
+const DAYS_TO_PARSE = 10;
 
 // Конфигурация Crawlee
 const config = new Configuration({
@@ -237,8 +237,9 @@ function groupSessionsByMovieAndDay(sessions, daysCount, pageDate) {
         const mainSession = {
             ...earliest,
             dateStart: earliest.dateStart, // Уже с +2 часа
+            // ИСПРАВЛЕНО: добавляем place_id в slug для уникальности
             slug: slugify(
-                `${earliest.baseTitle}-${formatDate(
+                `${FIXED_PLACE_ID}-${earliest.baseTitle}-${formatDate(
                     earliest.sessionStart
                 ).replace(/\./g, "-")}`
             ),
@@ -456,18 +457,27 @@ class StrapiClient {
         return s ? `?${s}` : "";
     }
 
-    async findPartyBySlug(slug) {
+    // ИСПРАВЛЕНО: поиск по slug + dateStart + place (все состояния: live + preview)
+    async findPartyBySlug(slug, dateStart, placeId) {
         const params = new URLSearchParams();
         params.set("filters[slug][$eq]", slug);
+        params.set("filters[dateStart][$eq]", dateStart);
+        params.set("filters[place][id][$eq]", String(placeId));
         params.set("pagination[pageSize]", "1");
-        params.set("publicationState", "preview");
+        // Убираем publicationState - ищем все (live + preview)
         if (LOCALE) params.set("locale", LOCALE);
-        const data = await this.get(`/api/${COLLECTION}?${params.toString()}`);
-        if (data?.data?.length) {
-            const row = data.data[0];
-            log.info(`Найдена существующая запись: ${slug} -> ID ${row.id}`);
-            return row && Number.isFinite(row.id) ? row : null;
+        
+        try {
+            const data = await this.get(`/api/${COLLECTION}?${params.toString()}`);
+            if (data?.data?.length) {
+                const row = data.data[0];
+                log.info(`Найдена существующая запись: ${slug} -> ID ${row.id}`);
+                return row && Number.isFinite(row.id) ? row : null;
+            }
+        } catch (e) {
+            log.warning(`Ошибка поиска по фильтрам для ${slug}: ${e.message}`);
         }
+        
         log.info(`Запись не найдена: ${slug} - будет создана новая`);
         return null;
     }
@@ -513,10 +523,11 @@ class StrapiClient {
         return files[0];
     }
 
+    // ИСПРАВЛЕНО: обработка 404 и конфликтов slug (с новым поиском)
     async upsertParty(p) {
         let existing = null;
         try {
-            existing = await this.findPartyBySlug(p.slug);
+            existing = await this.findPartyBySlug(p.slug, p.dateStart, FIXED_PLACE_ID);
         } catch (e) {
             log.warning(`Ошибка поиска записи ${p.slug}: ${e.message}`);
         }
@@ -568,18 +579,16 @@ class StrapiClient {
                 log.info(`Обновлена запись ID ${id} для slug ${p.slug}`);
                 return { id, data: res?.data || res };
             } catch (e) {
-                // Если 404 - запись была удалена, но slug остался в индексе
+                // Если 404 - запись удалена, но комбо slug+date+place занято
                 if (e.message.includes("404")) {
                     log.warning(
-                        `Запись ${existing.id} не найдена (404), но slug ${p.slug} занят. Пропускаем.`
+                        `Запись ${existing.id} не найдена (404), но комбо ${p.slug}+${p.dateStart} занято. Пропускаем.`
                     );
-                    // Не создаём дубликат - просто пропускаем
                     return { id: null, data: null };
                 }
                 throw e;
             }
         } else {
-            // Запись не найдена - создаём новую
             try {
                 const res = await this.post(`/api/${COLLECTION}`, {
                     data: baseData,
@@ -588,10 +597,10 @@ class StrapiClient {
                 log.info(`Создана новая запись ID ${id} для slug ${p.slug}`);
                 return { id, data: res?.data || res };
             } catch (e) {
-                // Если slug уже занят (конфликт)
+                // Если slug/date/place уникально занято
                 if (e.message.includes("unique") || e.message.includes("400")) {
                     log.warning(
-                        `Slug ${p.slug} уже существует, но не найден через поиск. Пропускаем.`
+                        `Комбо ${p.slug}+${p.dateStart} уже существует. Пропускаем.`
                     );
                     return { id: null, data: null };
                 }
@@ -731,6 +740,7 @@ async function main() {
                 const rawItems = extractAllSessions($, request.url, pageDate);
                 log.info(`Найдено сеансов: ${rawItems.length}`);
 
+                // Передаём pageDate в groupSessionsByMovieAndDay
                 const groupedItems = groupSessionsByMovieAndDay(
                     rawItems,
                     DAYS_TO_PARSE,
@@ -822,7 +832,7 @@ async function main() {
                     }
                 }
 
-                // Создаем/обновляем записи в Strapi
+                // Создаем/обновляем записи в Strapi (ИСПРАВЛЕНО: передаём dateStart и place в поиск)
                 for (const s of groupedItems) {
                     try {
                         const party = {
@@ -838,10 +848,10 @@ async function main() {
                         const saved = await strapi.upsertParty(party);
                         const partyId = saved?.id;
 
-                        // Если ID null - запись не создана/не обновлена (конфликт или ошибка)
+                        // Проверка на null
                         if (!partyId) {
                             log.warning(
-                                `Не удалось создать/обновить запись для ${s.title}`
+                                `Не удалось создать/обновить запись для ${s.title} (${s.slug})`
                             );
                             continue;
                         }
