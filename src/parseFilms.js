@@ -1,7 +1,6 @@
 // index.js
 // package.json -> { "type": "module" }
 // npm i crawlee slugify dotenv
-// Windows: $env:CRAWLEE_SYSTEM_INFO_V2='1'; node index.js
 
 import "dotenv/config";
 import { CheerioCrawler, log, Configuration } from "crawlee";
@@ -34,7 +33,7 @@ const LOCALE = process.env.STRAPI_LOCALE || "";
 const FIXED_PLACE_ID = 10611;
 
 // КОЛИЧЕСТВО ДНЕЙ ДЛЯ ПАРСИНГА (включая сегодня)
-const DAYS_TO_PARSE = 7;
+const DAYS_TO_PARSE = 10;
 
 // Конфигурация Crawlee
 const config = new Configuration({
@@ -91,7 +90,7 @@ function safeBaseName(name) {
 }
 
 function getExtFromUrl(u) {
-    const s = typeof u === "string" ? u : u?.toString?.() ?? "";
+    const s = typeof u === "string" ? u : u?.toString() ?? "";
     const m = s.match(/\.([a-zA-Z0-9]+)(?:[?#]|$)/);
     return m && typeof m[1] === "string" ? m[1].toLowerCase() : "";
 }
@@ -203,7 +202,7 @@ function formatDate(date) {
     });
 }
 
-// ИСПРАВЛЕННАЯ функция для сохранения московского времени в базу
+// Функция для создания ISO строки с московским временем (+03:00)
 function toMoscowISOString(date) {
     const formatter = new Intl.DateTimeFormat('sv-SE', {
         timeZone: 'Europe/Moscow',
@@ -253,6 +252,7 @@ function groupSessionsByMovieAndDay(sessions, daysCount) {
     for (const [_, movieSessions] of groups) {
         movieSessions.sort((a, b) => a.sessionStart.getTime() - b.sessionStart.getTime());
         const earliest = movieSessions[0];
+        
         // Добавляем к времени сеанса 1 час только для описания
         const allTimes = movieSessions.map((s) => {
             const sessionPlus = new Date(s.sessionStart.getTime() + 60 * 60 * 1000);
@@ -260,10 +260,12 @@ function groupSessionsByMovieAndDay(sessions, daysCount) {
             const time = formatTime(sessionPlus);
             return `${date} в ${time}`;
         });
+        
         const mainSession = {
             ...earliest,
-            dateStart: toMoscowISOString(earliest.sessionStart),
-            slug: slugify(`${earliest.baseTitle}-${formatDate(earliest.sessionStart).replace(/\./g, "-")}`),
+            dateStart: earliest.dateStart,
+            // ИСПРАВЛЕНО: добавляем place_id в slug для уникальности
+            slug: slugify(`${FIXED_PLACE_ID}-${earliest.baseTitle}-${formatDate(earliest.sessionStart).replace(/\./g, "-")}`),
             allShowTimes: allTimes,
         };
         result.push(mainSession);
@@ -490,17 +492,27 @@ class StrapiClient {
         return s ? `?${s}` : "";
     }
 
-    async findPartyBySlug(slug) {
+    // ИСПРАВЛЕНО: поиск по slug + dateStart + place
+    async findPartyBySlug(slug, dateStart, placeId) {
         const params = new URLSearchParams();
         params.set("filters[slug][$eq]", slug);
+        params.set("filters[dateStart][$eq]", dateStart);
+        params.set("filters[place][id][$eq]", String(placeId));
         params.set("pagination[pageSize]", "1");
-        params.set("publicationState", "preview");
         if (LOCALE) params.set("locale", LOCALE);
-        const data = await this.get(`/api/${COLLECTION}?${params.toString()}`);
-        if (data?.data?.length) {
-            const row = data.data[0];
-            return row && Number.isFinite(row.id) ? row : null;
+        
+        try {
+            const data = await this.get(`/api/${COLLECTION}?${params.toString()}`);
+            if (data?.data?.length) {
+                const row = data.data[0];
+                log.info(`Найдена существующая запись: ${slug} -> ID ${row.id}`);
+                return row && Number.isFinite(row.id) ? row : null;
+            }
+        } catch (e) {
+            log.warning(`Ошибка поиска по фильтрам для ${slug}: ${e.message}`);
         }
+        
+        log.info(`Запись не найдена: ${slug} - будет создана новая`);
         return null;
     }
 
@@ -543,8 +555,15 @@ class StrapiClient {
         return files[0];
     }
 
+    // ИСПРАВЛЕНО: обработка 404 и конфликтов slug
     async upsertParty(p) {
-        const existing = await this.findPartyBySlug(p.slug);
+        let existing = null;
+        try {
+            existing = await this.findPartyBySlug(p.slug, p.dateStart, FIXED_PLACE_ID);
+        } catch (e) {
+            log.warning(`Ошибка поиска записи ${p.slug}: ${e.message}`);
+        }
+
         let finalDescription = "";
 
         if (p.allShowTimes && p.allShowTimes.length > 1) {
@@ -581,19 +600,37 @@ class StrapiClient {
         }
 
         if (existing && Number.isFinite(existing.id)) {
-            const qs = this.qLocale();
-            const res = await this.put(
-                `/api/${COLLECTION}/${existing.id}${qs}`,
-                { data: baseData }
-            );
-            const id = res?.data?.id ?? res?.id ?? existing.id;
-            return { id, data: res?.data || res };
+            try {
+                const qs = this.qLocale();
+                const res = await this.put(
+                    `/api/${COLLECTION}/${existing.id}${qs}`,
+                    { data: baseData }
+                );
+                const id = res?.data?.id ?? res?.id ?? existing.id;
+                log.info(`Обновлена запись ID ${id} для slug ${p.slug}`);
+                return { id, data: res?.data || res };
+            } catch (e) {
+                if (e.message.includes("404")) {
+                    log.warning(`Запись ${existing.id} не найдена (404), но комбо ${p.slug}+${p.dateStart} занято. Пропускаем.`);
+                    return { id: null, data: null };
+                }
+                throw e;
+            }
         } else {
-            const res = await this.post(`/api/${COLLECTION}`, {
-                data: baseData,
-            });
-            const id = res?.data?.id ?? res?.id;
-            return { id, data: res?.data || res };
+            try {
+                const res = await this.post(`/api/${COLLECTION}`, {
+                    data: baseData,
+                });
+                const id = res?.data?.id ?? res?.id;
+                log.info(`Создана новая запись ID ${id} для slug ${p.slug}`);
+                return { id, data: res?.data || res };
+            } catch (e) {
+                if (e.message.includes("unique") || e.message.includes("400")) {
+                    log.warning(`Комбо ${p.slug}+${p.dateStart} уже существует. Пропускаем.`);
+                    return { id: null, data: null };
+                }
+                throw e;
+            }
         }
     }
 }
@@ -657,7 +694,6 @@ function extractAllSessions($, baseUrl) {
                         );
                         if (!baseTitle || !tsSec) return;
 
-                        // Используем московское время для сохранения
                         const sessionDate = new Date(tsSec * 1000);
                         const dateStart = toMoscowISOString(sessionDate);
                         const dateEnd = lengthMin > 0
@@ -703,7 +739,6 @@ async function main() {
     log.info(`LOCALE: ${LOCALE || "(default)"}`);
     log.info(`Парсим сеансы на ${DAYS_TO_PARSE} дней`);
 
-    // Тест соединения
     const connectionOk = await testConnection(CINEMA_URL);
     if (!connectionOk) {
         log.error("Не удается подключиться к сайту кинотеатра. Завершаю работу.");
@@ -741,7 +776,6 @@ async function main() {
                 const tasks = [];
                 const coverPathByUrl = new Map();
 
-                // Загружаем описания фильмов
                 const uniqueSites = Array.from(
                     new Set(groupedItems.map((s) => s.site))
                 ).filter(isValidHttpUrl);
@@ -770,7 +804,6 @@ async function main() {
                     );
                 }
 
-                // Загружаем изображения
                 for (const s of groupedItems) {
                     const coverUrl = s._coverUrl;
                     if (!coverUrl) continue;
@@ -807,7 +840,6 @@ async function main() {
 
                 await Promise.allSettled(tasks);
 
-                // Добавляем описания к фильмам
                 for (const s of groupedItems) {
                     if (
                         !s.description &&
@@ -818,7 +850,6 @@ async function main() {
                     }
                 }
 
-                // Создаем/обновляем записи в Strapi
                 for (const s of groupedItems) {
                     try {
                         const party = {
@@ -836,11 +867,10 @@ async function main() {
                         const partyId = saved?.id;
                         
                         if (!partyId) {
-                            log.warning(`Не получен ID для ${s.title}`);
+                            log.warning(`Не удалось создать/обновить запись для ${s.title} (${s.slug})`);
                             continue;
                         }
 
-                        // Привязываем обложку
                         if (s._coverUrl) {
                             const localPath = coverPathByUrl.get(s._coverUrl);
                             if (localPath) {
@@ -864,12 +894,13 @@ async function main() {
                         }
                     } catch (e) {
                         log.warning(
-                            `Strapi upsert failed for "${s.title}" (${s.slug}): ${describeFetchError(e)}`
+                            `Strapi upsert failed for "${s.title}" (${
+                                s.slug
+                            }): ${describeFetchError(e)}`
                         );
                     }
                 }
 
-                // Очищаем временные данные
                 for (const s of groupedItems) {
                     delete s._coverUrl;
                 }
